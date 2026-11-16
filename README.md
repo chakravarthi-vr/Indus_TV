@@ -1,6 +1,6 @@
 # Indus TV
 
-A simple, remote-friendly IPTV player for Android TV focusing on free Indian channels, built and tuned for basic 720p and 1080p TVs.
+A simple, remote-friendly IPTV player for Android TV with an India focus, built and tuned for basic 720p and 1080p TVs.
 
 ## Features
 - Channel grid with logos
@@ -20,15 +20,30 @@ with the **Source** button.
 
 You are responsible for the playlists you use and for making sure you have the right to watch their content.
 Streams in public playlists are unofficial and may go offline or be geo-blocked at any time.
+Indus TV is not affiliated with any TV channel or broadcaster.
 
 ## Install
-1. Download the APK from the [Releases](../../releases) page, or from the latest **Actions** run (artifact `IndusTV-apk`).
+1. Download the APK from the [Releases](../../releases) page.
 2. Copy it to your TV with a USB drive or `adb install`, and allow installs from unknown sources.
+
+## Updating
+Install the new APK over the old one. Your favorites and playlist are kept.
+Only use APKs from the Releases page, because APKs built on a different machine are signed with a different key and
+Android will refuse to update over them. If an update is refused, uninstall once and install again.
 
 ## Build it yourself
 Open the project in Android Studio and choose **Build → Build APK(s)**.
 Or push to GitHub: the workflow in `.github/workflows/build.yml` builds the APK automatically.
-To publish a Release, push a tag, for example `git tag v1.0 && git push origin v1.0`.
+To publish a Release, push a tag, for example `git tag v1.1 && git push origin v1.1`.
+
+### Signing (maintainers)
+Releases are signed with one fixed key so every version can update the previous one. Create a keystore once:
+
+    keytool -genkeypair -v -keystore indus.jks -alias indus -keyalg RSA -keysize 2048 -validity 10000
+
+Then add these repository secrets (Settings → Secrets and variables → Actions):
+`KEYSTORE_BASE64` (the keystore encoded as base64), `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`.
+Never commit the keystore, and keep a backup. If you lose it, users must uninstall to update.
 
 ## Credits
 - Playlist source: [iptv-org](https://github.com/iptv-org/iptv)
