@@ -15,7 +15,8 @@ data class Channel(
     val logo: String?,
     val groups: List<String>,
     val userAgent: String? = null,
-    val referrer: String? = null
+    val referrer: String? = null,
+    val languages: List<String> = emptyList()
 )
 
 object Repo {
@@ -33,6 +34,64 @@ object Repo {
     private val io = Executors.newSingleThreadExecutor()
     private val ui = Handler(Looper.getMainLooper())
     private val attr = Regex("([\\w-]+)=\"([^\"]*)\"")
+
+    val LANGS = listOf(
+        "Hindi", "English", "Tamil", "Telugu", "Malayalam", "Kannada", "Marathi", "Gujarati",
+        "Bengali", "Punjabi", "Odia", "Rajasthani", "Assamese", "Bhojpuri", "Urdu"
+    )
+    private val nonAlnum = Regex("[^a-z0-9]+")
+    private fun norm(s: String) = " " + s.lowercase().replace(nonAlnum, " ").trim() + " "
+
+    private val ALIASES = mapOf(
+        "bangla" to "Bengali", "oriya" to "Odia", "odisha" to "Odia", "panjabi" to "Punjabi",
+        "rajasthan" to "Rajasthani", "assam" to "Assamese", "gujarat" to "Gujarati",
+        "kerala" to "Malayalam", "karnataka" to "Kannada", "maharashtra" to "Marathi"
+    )
+
+    // 1) language words written in the name (regional first, Hindi/English last)
+    private val explicit: List<Pair<String, String>> =
+        (LANGS.filter { it != "Hindi" && it != "English" }.map { norm(it) to it } +
+            ALIASES.map { norm(it.key) to it.value } +
+            listOf(norm("Hindi") to "Hindi", norm("English") to "English"))
+
+    // 2) well-known channel names
+    private val HINTS: List<Pair<String, List<String>>> = listOf(
+        "Tamil" to listOf("sun tv", "sun news", "sun music", "kalaignar", "polimer", "raj tv", "raj news", "puthiya thalaimurai",
+            "thanthi tv", "jaya tv", "vasanth tv", "mega tv", "makkal tv", "murasu", "captain tv", "vijay tv", "star vijay", "adithya", "chutti tv", "kalaignar seithigal", "news j"),
+        "Telugu" to listOf("etv", "gemini", "maa tv", "maa music", "sakshi", "ntv", "tv5", "abn andhra", "10tv", "hmtv", "sumantv", "studio n", "tv9 telugu", "bhakti tv", "raj news telugu", "v6 news"),
+        "Malayalam" to listOf("asianet", "mazhavil", "surya tv", "kairali", "manorama", "mathrubhumi", "flowers tv", "reporter tv", "twentyfour", "24 news", "janam tv", "amrita tv", "media one", "mediaone", "jaihind", "kaumudi", "shalom tv", "darshana"),
+        "Kannada" to listOf("udaya", "suvarna", "public tv", "kasthuri", "power tv", "janasri", "tv9 kannada", "zee kannada", "colors kannada", "news first"),
+        "Marathi" to listOf("abp majha", "zee 24 taas", "jai maharashtra", "saam tv", "star pravah", "mi marathi", "lokshahi", "tv9 marathi", "sony marathi", "zee marathi", "colors marathi", "news18 lokmat", "ibn lokmat"),
+        "Gujarati" to listOf("tv9 gujarati", "zee 24 kalak", "sandesh news", "abp asmita", "vtv", "gstv", "dd girnar", "news18 gujarati", "colors gujarati"),
+        "Bengali" to listOf("zee bangla", "star jalsha", "jalsha", "abp ananda", "24 ghanta", "kolkata tv", "sangeet bangla", "sananda", "tv9 bangla", "news18 bangla", "r plus", "republic bangla"),
+        "Odia" to listOf("tarang", "sidharth tv", "otv", "zee sarthak", "news18 odia", "kanak news", "prameya", "naxatra", "mo tv", "argus"),
+        "Rajasthani" to listOf("first india", "news18 rajasthan", "zee rajasthan"),
+        "Punjabi" to listOf("ptc", "chardikla", "mh one", "jus punjabi", "9x tashan", "news18 punjab", "zee punjab"),
+        "Assamese" to listOf("dy 365", "pratidin", "prag news", "ndtv assam"),
+        "Hindi" to listOf("aaj tak", "india tv", "abp news", "zee news", "ndtv india", "news18 india", "republic bharat", "dd national",
+            "dd bharati", "star plus", "star bharat", "sony sab", "sony entertainment", "sab tv", "colors tv", "zee tv", "dangal", "big magic", "news nation", "india news",
+            "tv9 bharatvarsh", "sudarshan", "zee cinema", "star gold", "sony max", "and tv", "dd kisan", "lok sabha", "rajya sabha", "sansad", "bhakti", "sanskar", "aastha", "zee hindustan"),
+        "English" to listOf("ndtv 24x7", "times now", "wion", "cnbc", "bloomberg", "cnn", "bbc", "al jazeera", "india today", "republic world",
+            "mirror now", "et now", "hbo", "dd india", "news x", "france 24", "dw ", "sky news", "ndtv profit")
+    )
+    private val hints: List<Pair<String, String>> = HINTS.flatMap { (lang, ks) -> ks.map { norm(it) to lang } }
+
+    private fun canonical(s: String): String? {
+        val k = s.trim().lowercase()
+        if (k.isEmpty()) return null
+        return LANGS.firstOrNull { it.lowercase() == k } ?: ALIASES[k]
+    }
+
+    private fun detect(name: String, tvg: String?): List<String> {
+        if (!tvg.isNullOrBlank()) {
+            val found = tvg.split(";", ",", "/", "|").mapNotNull { canonical(it) }.distinct()
+            if (found.isNotEmpty()) return found
+        }
+        val n = norm(name)
+        for ((kw, lang) in explicit) if (n.contains(kw)) return listOf(lang)
+        for ((kw, lang) in hints) if (n.contains(kw)) return listOf(lang)
+        return emptyList()
+    }
 
     private fun prefs(c: Context) = c.getSharedPreferences("iptv", Context.MODE_PRIVATE)
 
@@ -102,6 +161,7 @@ object Repo {
         var groups: List<String> = emptyList()
         var ua: String? = null
         var ref: String? = null
+        var tvgLang: String? = null
         for (raw in text.lineSequence()) {
             val l = raw.trim()
             if (l.isEmpty()) continue
@@ -111,6 +171,7 @@ object Repo {
                 name = l.substringAfterLast(",").trim()
                 logo = a["tvg-logo"]?.takeIf { it.isNotBlank() }
                 groups = (a["group-title"] ?: "").split(";", ",").map { it.trim() }.filter { it.isNotEmpty() }
+                tvgLang = a["tvg-language"]
                 ua = null; ref = null
             } else if (l.startsWith("#EXTVLCOPT:http-user-agent=")) {
                 ua = l.substringAfter("=")
@@ -119,7 +180,7 @@ object Repo {
             } else if (!l.startsWith("#")) {
                 val n = name
                 if (n != null && l.startsWith("http")) {
-                    out.add(Channel(n.ifEmpty { "Channel" }, l, logo, groups.ifEmpty { listOf("Other") }, ua, ref))
+                    out.add(Channel(n.ifEmpty { "Channel" }, l, logo, groups.ifEmpty { listOf("Other") }, ua, ref, detect(n, tvgLang)))
                     name = null
                 }
             }

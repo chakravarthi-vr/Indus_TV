@@ -20,6 +20,8 @@ import androidx.recyclerview.widget.RecyclerView
 class MainActivity : AppCompatActivity() {
     private val ALL = "All"
     private val FAV = "★ Favorites"
+    private val ALL_LANG = "All Languages"
+    private val OTHER = "Other"
 
     private lateinit var grid: RecyclerView
     private lateinit var cats: RecyclerView
@@ -29,7 +31,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var title: TextView
     private lateinit var adapter: ChannelAdapter
     private lateinit var catAdapter: CategoryAdapter
+    private lateinit var langs: RecyclerView
+    private lateinit var langAdapter: CategoryAdapter
     private var category = ALL
+    private var language = ALL_LANG
     private var query = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,6 +71,12 @@ class MainActivity : AppCompatActivity() {
         catAdapter = CategoryAdapter { selectCategory(it) }
         cats.adapter = catAdapter
 
+        langs = findViewById(R.id.langs)
+        langs.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        langAdapter = CategoryAdapter { selectLanguage(it) }
+        langAdapter.selected = ALL_LANG
+        langs.adapter = langAdapter
+
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
@@ -84,6 +95,7 @@ class MainActivity : AppCompatActivity() {
                 when {
                     query.isNotEmpty() -> search.setText("")
                     category != ALL -> selectCategory(ALL)
+                    language != ALL_LANG -> selectLanguage(ALL_LANG)
                     else -> { isEnabled = false; onBackPressedDispatcher.onBackPressed() }
                 }
             }
@@ -113,6 +125,17 @@ class MainActivity : AppCompatActivity() {
                 if (category !in catAdapter.items) category = ALL
                 catAdapter.selected = category
                 catAdapter.notifyDataSetChanged()
+
+                val present = list.flatMap { it.languages }.toSet()
+                val langItems = ArrayList<String>()
+                langItems.add(ALL_LANG)
+                langItems.addAll(Repo.LANGS.filter { it in present })
+                if (list.any { it.languages.isEmpty() }) langItems.add(OTHER)
+                langAdapter.items = langItems
+                if (language !in langItems) language = ALL_LANG
+                langAdapter.selected = language
+                langAdapter.notifyDataSetChanged()
+
                 applyFilter()
                 grid.requestFocus()
                 if (msg != null) Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
@@ -127,6 +150,13 @@ class MainActivity : AppCompatActivity() {
         applyFilter()
     }
 
+    private fun selectLanguage(name: String) {
+        language = name
+        langAdapter.selected = name
+        langAdapter.notifyItemRangeChanged(0, langAdapter.itemCount)
+        applyFilter()
+    }
+
     private fun applyFilter() {
         val q = query.trim().lowercase()
         val src = when (category) {
@@ -134,7 +164,12 @@ class MainActivity : AppCompatActivity() {
             FAV -> Repo.all.filter { Repo.isFav(it.url) }
             else -> Repo.all.filter { category in it.groups }
         }
-        val res = if (q.isEmpty()) src else src.filter { it.name.lowercase().contains(q) }
+        val byLang = when (language) {
+            ALL_LANG -> src
+            OTHER -> src.filter { it.languages.isEmpty() }
+            else -> src.filter { language in it.languages }
+        }
+        val res = if (q.isEmpty()) byLang else byLang.filter { it.name.lowercase().contains(q) }
         Repo.shown = res
         adapter.items = res
         adapter.notifyDataSetChanged()
