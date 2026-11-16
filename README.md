@@ -1,6 +1,6 @@
 # Indus TV
 
-A simple, remote-friendly IPTV player for Android TV, built and tuned for basic 720p Mi TVs.
+A simple, remote-friendly IPTV player for Android TV, built and tuned for basic 720p and 1080p Android Smart TVs.
 
 ## Features
 - Channel grid with logos
