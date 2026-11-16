@@ -1,6 +1,6 @@
 # Indus TV
 
-A simple, remote-friendly IPTV player for Android TV, built and tuned for basic 720p Mi TVs.
+A simple, remote-friendly IPTV player for Android TV focusing on free Indian channels, built and tuned for basic 720p and 1080p TVs.
 
 ## Features
 - Channel grid with logos
@@ -32,7 +32,6 @@ To publish a Release, push a tag, for example `git tag v1.0 && git push origin v
 
 ## Credits
 - Playlist source: [iptv-org](https://github.com/iptv-org/iptv)
-- Idea inspired by [Indian-IPTV-App](https://github.com/kananinirav/Indian-IPTV-App)
 - Playback: [AndroidX Media3 / ExoPlayer](https://developer.android.com/media/media3)
 - Images: [Coil](https://coil-kt.github.io/coil/)
 
