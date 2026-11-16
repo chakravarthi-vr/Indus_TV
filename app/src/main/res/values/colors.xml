@@ -1,0 +1,7 @@
+<resources>
+    <color name="bg">#0F1226</color>
+    <color name="card">#1C2040</color>
+    <color name="card_focus">#2A3060</color>
+    <color name="accent">#E91E63</color>
+    <color name="muted">#9AA0C0</color>
+</resources>
