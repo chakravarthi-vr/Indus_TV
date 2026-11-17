@@ -8,6 +8,8 @@ A simple, remote-friendly IPTV player for Android TV with an India focus, built 
 - Category filters and Favorites (long-press OK on a channel)
 - Language filter: Hindi, English, Tamil, Telugu, Malayalam, Kannada, Marathi, Gujarati, Bengali, Punjabi, Odia, Rajasthani and more
   (detected from the playlist's language tag or the channel name, so a few channels may appear under "Other")
+- **Global** option: all English-language channels from around the world (separate worldwide playlist)
+- Channels that stream on YouTube open in the YouTube app
 - Remote control navigation: ▲ / ▼ to change channel while watching
 - Saved playlist for offline use, with automatic retry on stream errors
 - Lightweight, with small buffers for low-RAM TVs

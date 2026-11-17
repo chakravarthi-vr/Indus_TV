@@ -92,11 +92,14 @@ class PlayerActivity : AppCompatActivity() {
         player = null
     }
 
-    private fun play(i: Int) {
+    private fun play(i: Int, step: Int = 1) {
         val q = Repo.queue
         if (q.isEmpty()) { finish(); return }
         h.removeCallbacksAndMessages(null)
-        val idx = ((i % q.size) + q.size) % q.size
+        var idx = ((i % q.size) + q.size) % q.size
+        var guard = 0
+        while (Repo.isYoutube(q[idx].url) && guard < q.size) { idx = ((idx + step) % q.size + q.size) % q.size; guard++ }
+        if (Repo.isYoutube(q[idx].url)) { finish(); return }
         Repo.index = idx
         retries = 0
         val ch = q[idx]
@@ -131,7 +134,7 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean = when (keyCode) {
         KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> { play(Repo.index + 1); true }
-        KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> { play(Repo.index - 1); true }
+        KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> { play(Repo.index - 1, -1); true }
         KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_INFO -> { showInfo(); true }
         else -> super.onKeyDown(keyCode, event)
     }

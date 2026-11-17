@@ -1,6 +1,7 @@
 package com.iptv.industv
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -22,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private val FAV = "★ Favorites"
     private val ALL_LANG = "All Languages"
     private val OTHER = "Other"
+    private val GLOBAL = "Global"
 
     private lateinit var grid: RecyclerView
     private lateinit var cats: RecyclerView
@@ -54,9 +56,13 @@ class MainActivity : AppCompatActivity() {
         grid.setHasFixedSize(false)
         adapter = ChannelAdapter(
             onClick = { pos ->
-                Repo.queue = Repo.shown
-                Repo.index = pos
-                startActivity(Intent(this, PlayerActivity::class.java))
+                val ch = Repo.shown[pos]
+                if (Repo.isYoutube(ch.url)) openYoutube(ch.url)
+                else {
+                    Repo.queue = Repo.shown
+                    Repo.index = pos
+                    startActivity(Intent(this, PlayerActivity::class.java))
+                }
             },
             onLong = { c ->
                 val on = Repo.toggleFav(this, c.url)
@@ -111,7 +117,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadChannels(force: Boolean) {
         progress.visibility = View.VISIBLE
         empty.visibility = View.GONE
-        Repo.load(this, force) { list, msg ->
+        Repo.load(this, force, language == GLOBAL) { list, msg ->
             progress.visibility = View.GONE
             if (list == null) {
                 Repo.all = emptyList()
@@ -126,15 +132,18 @@ class MainActivity : AppCompatActivity() {
                 catAdapter.selected = category
                 catAdapter.notifyDataSetChanged()
 
-                val present = list.flatMap { it.languages }.toSet()
-                val langItems = ArrayList<String>()
-                langItems.add(ALL_LANG)
-                langItems.addAll(Repo.LANGS.filter { it in present })
-                if (list.any { it.languages.isEmpty() }) langItems.add(OTHER)
-                langAdapter.items = langItems
-                if (language !in langItems) language = ALL_LANG
-                langAdapter.selected = language
-                langAdapter.notifyDataSetChanged()
+                if (language != GLOBAL) {
+                    val present = list.flatMap { it.languages }.toSet()
+                    val langItems = ArrayList<String>()
+                    langItems.add(ALL_LANG)
+                    langItems.add(GLOBAL)
+                    langItems.addAll(Repo.LANGS.filter { it in present })
+                    if (list.any { it.languages.isEmpty() }) langItems.add(OTHER)
+                    langAdapter.items = langItems
+                    if (language !in langItems) language = ALL_LANG
+                    langAdapter.selected = language
+                    langAdapter.notifyDataSetChanged()
+                }
 
                 applyFilter()
                 grid.requestFocus()
@@ -151,10 +160,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun selectLanguage(name: String) {
+        // Global uses a separate worldwide playlist, so entering/leaving it reloads the list
+        val switching = (name == GLOBAL) != (language == GLOBAL)
         language = name
         langAdapter.selected = name
         langAdapter.notifyItemRangeChanged(0, langAdapter.itemCount)
-        applyFilter()
+        if (switching) {
+            category = ALL
+            catAdapter.selected = ALL
+            loadChannels(false)
+        } else {
+            applyFilter()
+        }
+    }
+
+    private fun openYoutube(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (e: Exception) {
+            Toast.makeText(this, "YouTube app not found on this TV", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun applyFilter() {
@@ -165,7 +190,7 @@ class MainActivity : AppCompatActivity() {
             else -> Repo.all.filter { category in it.groups }
         }
         val byLang = when (language) {
-            ALL_LANG -> src
+            ALL_LANG, GLOBAL -> src
             OTHER -> src.filter { it.languages.isEmpty() }
             else -> src.filter { language in it.languages }
         }
@@ -173,7 +198,7 @@ class MainActivity : AppCompatActivity() {
         Repo.shown = res
         adapter.items = res
         adapter.notifyDataSetChanged()
-        title.text = "Indus TV (${res.size})"
+        title.text = "Indus TV" + (if (language == GLOBAL) " Global" else "") + " (${res.size})"
         if (res.isEmpty() && Repo.all.isNotEmpty()) {
             empty.text = if (category == FAV && q.isEmpty()) "No favorites yet.\nLong-press OK on a channel to add one." else "No channels found"
             empty.visibility = View.VISIBLE

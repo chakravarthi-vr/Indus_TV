@@ -23,6 +23,8 @@ object Repo {
     // Default source: public iptv-org India playlist. Change in-app via the "Source" button
     // (paste the m3u URL used by the original Indian-IPTV-App's channel source).
     const val DEFAULT_URL = "https://iptv-org.github.io/iptv/countries/in.m3u"
+    // "Global" = every English-language channel in the public iptv-org collection
+    const val GLOBAL_URL = "https://iptv-org.github.io/iptv/languages/eng.m3u"
     private const val TTL = 6L * 3600 * 1000
 
     var all: List<Channel> = emptyList()
@@ -56,8 +58,9 @@ object Repo {
 
     // 2) well-known channel names
     private val HINTS: List<Pair<String, List<String>>> = listOf(
-        "Tamil" to listOf("sun tv", "sun news", "sun music", "kalaignar", "polimer", "raj tv", "raj news", "puthiya thalaimurai",
-            "thanthi tv", "jaya tv", "vasanth tv", "mega tv", "makkal tv", "murasu", "captain tv", "vijay tv", "star vijay", "adithya", "chutti tv", "kalaignar seithigal", "news j"),
+        "Tamil" to listOf("sun news", "sun music", "kalaignar", "polimer", "raj tv", "raj news",
+            "thanthi tv", "thanthi one", "thanthi", "jaya tv", "vasanth", "vasantham", "mega tv", "makkal tv", "murasu", "captain tv", "vijay tv", "star vijay", "vijay takkar", "adithya", "chutti tv", "kalaignar seithigal", "news j",
+            "isai aruvi", "chithiram", "dhool", "win tv", "peppers tv", "sathyam tv", "sathiyam tv", "sathiyam", "moon tv", "tamil vision", "wow kidz", "puthiya thalaimurai"),
         "Telugu" to listOf("etv", "gemini", "maa tv", "maa music", "sakshi", "ntv", "tv5", "abn andhra", "10tv", "hmtv", "sumantv", "studio n", "tv9 telugu", "bhakti tv", "raj news telugu", "v6 news"),
         "Malayalam" to listOf("asianet", "mazhavil", "surya tv", "kairali", "manorama", "mathrubhumi", "flowers tv", "reporter tv", "twentyfour", "24 news", "janam tv", "amrita tv", "media one", "mediaone", "jaihind", "kaumudi", "shalom tv", "darshana"),
         "Kannada" to listOf("udaya", "suvarna", "public tv", "kasthuri", "power tv", "janasri", "tv9 kannada", "zee kannada", "colors kannada", "news first"),
@@ -76,6 +79,30 @@ object Repo {
     )
     private val hints: List<Pair<String, String>> = HINTS.flatMap { (lang, ks) -> ks.map { norm(it) to lang } }
 
+    // Matches names written without spaces, e.g. "VasanthTV", "TamilVision" (long keywords only)
+    private val compactExplicit: List<Pair<String, String>> =
+        LANGS.filter { it.length >= 5 && it != "Hindi" && it != "English" }.map { it.lowercase() to it }
+    private val compactHints: List<Pair<String, String>> =
+        hints.map { it.first.replace(" ", "") to it.second }.filter { it.first.length >= 7 }
+
+    // Channels that never play: hidden from the app (Sun TV) or replaced by a YouTube entry (Puthiya Thalaimurai)
+    private fun isHidden(name: String): Boolean {
+        val n = norm(name)
+        val c = n.replace(" ", "")
+        return n.contains(" sun tv ") || c.startsWith("suntv") || c.contains("puthiyathalaimurai")
+    }
+
+    fun isYoutube(u: String) = u.contains("youtube.com") || u.contains("youtu.be")
+
+    // Extra live channels that stream on YouTube (open in the YouTube app)
+    private val EXTRAS = listOf(
+        Channel(
+            name = "Puthiya Thalaimurai (YouTube Live)",
+            url = "https://www.youtube.com/channel/UCmyKnNRH0wH-r8I-ceP-dsg/live",
+            logo = null, groups = listOf("News"), languages = listOf("Tamil")
+        )
+    )
+
     private fun canonical(s: String): String? {
         val k = s.trim().lowercase()
         if (k.isEmpty()) return null
@@ -90,6 +117,9 @@ object Repo {
         val n = norm(name)
         for ((kw, lang) in explicit) if (n.contains(kw)) return listOf(lang)
         for ((kw, lang) in hints) if (n.contains(kw)) return listOf(lang)
+        val c = n.replace(" ", "")
+        for ((kw, lang) in compactExplicit) if (c.contains(kw)) return listOf(lang)
+        for ((kw, lang) in compactHints) if (c.contains(kw)) return listOf(lang)
         return emptyList()
     }
 
@@ -111,10 +141,10 @@ object Repo {
     fun sourceUrl(c: Context): String = prefs(c).getString("src", DEFAULT_URL) ?: DEFAULT_URL
     fun setSource(c: Context, u: String) { prefs(c).edit().putString("src", u).apply() }
 
-    fun load(c: Context, force: Boolean, cb: (List<Channel>?, String?) -> Unit) {
+    fun load(c: Context, force: Boolean, global: Boolean = false, cb: (List<Channel>?, String?) -> Unit) {
         val app = c.applicationContext
         io.execute {
-            val f = File(app.filesDir, "playlist.m3u")
+            val f = File(app.filesDir, if (global) "playlist_global.m3u" else "playlist.m3u")
             var list: List<Channel>? = null
             var msg: String? = null
             val fresh = !force && f.exists() && System.currentTimeMillis() - f.lastModified() < TTL
@@ -123,7 +153,7 @@ object Repo {
             }
             if (list.isNullOrEmpty()) {
                 try {
-                    val text = download(sourceUrl(app))
+                    val text = download(if (global) GLOBAL_URL else sourceUrl(app))
                     val l = parse(text)
                     if (l.isEmpty()) throw IOException("no channels in playlist")
                     f.writeText(text)
@@ -135,7 +165,7 @@ object Repo {
                     } catch (e2: Exception) { /* ignore */ }
                 }
             }
-            val r = list
+            val r = if (!global && !list.isNullOrEmpty()) (list!! + EXTRAS).sortedBy { it.name.lowercase() } else list
             val m = msg
             ui.post { cb(if (r.isNullOrEmpty()) null else r, m) }
         }
@@ -179,7 +209,7 @@ object Repo {
                 ref = l.substringAfter("=")
             } else if (!l.startsWith("#")) {
                 val n = name
-                if (n != null && l.startsWith("http")) {
+                if (n != null && l.startsWith("http") && !isHidden(n)) {
                     out.add(Channel(n.ifEmpty { "Channel" }, l, logo, groups.ifEmpty { listOf("Other") }, ua, ref, detect(n, tvgLang)))
                     name = null
                 }
