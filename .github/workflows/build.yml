@@ -36,7 +36,8 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/indus.jks"
             echo "KEYSTORE_FILE=$RUNNER_TEMP/indus.jks" >> "$GITHUB_ENV"
           else
-            echo "::warning::No signing key found. This APK cannot update installs made from other builds."
+            echo "::error::KEYSTORE_BASE64 secret is missing. Without it every build gets a different signature and cannot update the installed app. See README > Signing."
+            exit 1
           fi
 
       - name: Build release APK
@@ -47,17 +48,28 @@ jobs:
           APP_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'dev' }}
         run: gradle assembleRelease --no-daemon
 
-      - name: Rename APK
-        run: mv app/build/outputs/apk/release/*.apk IndusTV.apk
+      - name: Name APK with version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VER="$GITHUB_REF_NAME"; else VER="dev-$GITHUB_RUN_NUMBER"; fi
+          mv app/build/outputs/apk/release/*.apk "IndusTV-$VER.apk"
+          echo "APK_NAME=IndusTV-$VER.apk" >> "$GITHUB_ENV"
+
+      # Shows the signing fingerprint: it must be identical for every release
+      - name: Show signing fingerprint
+        run: |
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          "$APKSIGNER" verify --print-certs "$APK_NAME" | grep -i "SHA-256" >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
           name: IndusTV-apk
-          path: IndusTV.apk
+          path: ${{ env.APK_NAME }}
 
       # Only runs when you push a tag like v1.0
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: IndusTV.apk
+          files: ${{ env.APK_NAME }}
