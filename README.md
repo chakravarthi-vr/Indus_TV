@@ -25,7 +25,7 @@ Streams in public playlists are unofficial and may go offline or be geo-blocked 
 Indus TV is not affiliated with any TV channel or broadcaster.
 
 ## Install
-1. Download the APK (named like `IndusTV-v1.2.apk`) from the [Releases](../../releases) page.
+1. Download the APK (`IndusTV-v1.5.apk`) from the [Releases](../../releases) page.
 2. Copy it to your TV with a USB drive or `adb install`, and allow installs from unknown sources.
 
 ## Updating
