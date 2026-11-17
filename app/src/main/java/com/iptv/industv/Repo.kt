@@ -60,7 +60,7 @@ object Repo {
     private val HINTS: List<Pair<String, List<String>>> = listOf(
         "Tamil" to listOf("sun news", "sun music", "kalaignar", "polimer", "raj tv", "raj news",
             "thanthi tv", "thanthi one", "thanthi", "jaya tv", "vasanth", "vasantham", "mega tv", "makkal tv", "murasu", "captain tv", "vijay tv", "star vijay", "vijay takkar", "adithya", "chutti tv", "kalaignar seithigal", "news j",
-            "isai aruvi", "chithiram", "dhool", "win tv", "peppers tv", "sathyam tv", "sathiyam tv", "sathiyam", "moon tv", "tamil vision", "wow kidz", "puthiya thalaimurai"),
+            "isai aruvi", "chithiram", "dhool", "win tv", "peppers tv", "sathyam tv", "sathiyam tv", "sathiyam", "moon tv", "tamil vision", "wow kidz"),
         "Telugu" to listOf("etv", "gemini", "maa tv", "maa music", "sakshi", "ntv", "tv5", "abn andhra", "10tv", "hmtv", "sumantv", "studio n", "tv9 telugu", "bhakti tv", "raj news telugu", "v6 news"),
         "Malayalam" to listOf("asianet", "mazhavil", "surya tv", "kairali", "manorama", "mathrubhumi", "flowers tv", "reporter tv", "twentyfour", "24 news", "janam tv", "amrita tv", "media one", "mediaone", "jaihind", "kaumudi", "shalom tv", "darshana"),
         "Kannada" to listOf("udaya", "suvarna", "public tv", "kasthuri", "power tv", "janasri", "tv9 kannada", "zee kannada", "colors kannada", "news first"),
@@ -85,8 +85,8 @@ object Repo {
     private val compactHints: List<Pair<String, String>> =
         hints.map { it.first.replace(" ", "") to it.second }.filter { it.first.length >= 7 }
 
-    // Channels that never play: hidden from the app (Sun TV) or replaced by a YouTube entry (Puthiya Thalaimurai)
-    private fun isHidden(name: String): Boolean {
+    // These channels stay in the list but are never put under Tamil (they currently do not play)
+    private fun noLanguage(name: String): Boolean {
         val n = norm(name)
         val c = n.replace(" ", "")
         return n.contains(" sun tv ") || c.startsWith("suntv") || c.contains("puthiyathalaimurai")
@@ -110,6 +110,7 @@ object Repo {
     }
 
     private fun detect(name: String, tvg: String?): List<String> {
+        if (noLanguage(name)) return emptyList()
         if (!tvg.isNullOrBlank()) {
             val found = tvg.split(";", ",", "/", "|").mapNotNull { canonical(it) }.distinct()
             if (found.isNotEmpty()) return found
@@ -209,7 +210,7 @@ object Repo {
                 ref = l.substringAfter("=")
             } else if (!l.startsWith("#")) {
                 val n = name
-                if (n != null && l.startsWith("http") && !isHidden(n)) {
+                if (n != null && l.startsWith("http")) {
                     out.add(Channel(n.ifEmpty { "Channel" }, l, logo, groups.ifEmpty { listOf("Other") }, ua, ref, detect(n, tvgLang)))
                     name = null
                 }
