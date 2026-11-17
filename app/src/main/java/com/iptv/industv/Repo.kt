@@ -38,7 +38,7 @@ object Repo {
     private val attr = Regex("([\\w-]+)=\"([^\"]*)\"")
 
     val LANGS = listOf(
-        "Hindi", "English", "Tamil", "Telugu", "Malayalam", "Kannada", "Marathi", "Gujarati",
+        "Tamil", "Hindi", "English", "Telugu", "Malayalam", "Kannada", "Marathi", "Gujarati",
         "Bengali", "Punjabi", "Odia", "Rajasthani", "Assamese", "Bhojpuri", "Urdu"
     )
     private val nonAlnum = Regex("[^a-z0-9]+")

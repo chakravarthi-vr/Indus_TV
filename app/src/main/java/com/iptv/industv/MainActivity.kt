@@ -136,8 +136,9 @@ class MainActivity : AppCompatActivity() {
                     val present = list.flatMap { it.languages }.toSet()
                     val langItems = ArrayList<String>()
                     langItems.add(ALL_LANG)
-                    langItems.add(GLOBAL)
                     langItems.addAll(Repo.LANGS.filter { it in present })
+                    val en = langItems.indexOf("English")
+                    langItems.add(if (en >= 0) en + 1 else 1, GLOBAL)
                     if (list.any { it.languages.isEmpty() }) langItems.add(OTHER)
                     langAdapter.items = langItems
                     if (language !in langItems) language = ALL_LANG

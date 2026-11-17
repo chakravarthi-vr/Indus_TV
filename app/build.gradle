@@ -9,8 +9,9 @@ android {
         applicationId 'com.iptv.industv'
         minSdk 21
         targetSdk 34
-        // CI sets these; every build gets a higher versionCode so updates install over old versions
-        versionCode Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER") ?: "1")
+        // Every build gets a higher versionCode so updates install over old versions
+        // minutes since 1970: always increases, so a newer build can always update an older one
+        versionCode System.currentTimeMillis().intdiv(60000) as int
         versionName(System.getenv("APP_VERSION") ?: "1.0")
     }
     signingConfigs {
