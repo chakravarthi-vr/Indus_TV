@@ -1,6 +1,6 @@
 # Indus TV
 
-A simple, remote-friendly IPTV player for Android TV with an India focus, built and tuned for basic 720p and 1080p TVs.
+A simple, remote-friendly IPTV player for Android TV, Smartphone and Tablet with an India focus, built and tuned for basic 720p and 1080p TVs.
 
 ## Features
 - Channel grid with logos
@@ -36,7 +36,7 @@ Android will refuse to update over them. If an update is refused, uninstall once
 ## Build it yourself
 Open the project in Android Studio and choose **Build → Build APK(s)**.
 Or push to GitHub: the workflow in `.github/workflows/build.yml` builds the APK automatically.
-To publish a Release, push a tag, for example `git tag v1.1 && git push origin v1.1`.
+To publish a Release, push a tag, for example `git tag v1.5 && git push origin v1.5`.
 
 ### Signing (maintainers)
 Releases are signed with one fixed key so every version can update the previous one. Create a keystore once:
